@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dim_rep
+    description: Account executives. planted_forecast_style is the generator's answer key, used only to validate the analysis.
+    columns:
+      - name: rep_id
+        tests: [unique, not_null]
+  - name: dim_account
+    columns:
+      - name: account_id
+        tests: [unique, not_null]
+  - name: fct_pipeline_snapshots
+    description: Open pipeline as it stood at the end of every week and quarter, rebuilt from the opportunity history.
+    tests:
+      - unique:
+          column_name: "cast(as_of_date as varchar) || '|' || opportunity_id"
+    columns:
+      - name: amount
+        tests: [not_null]
+  - name: fct_pipeline_waterfall
+    description: >
+      Quarterly pipeline waterfall per rep: opening + created + pulled in - won - lost - moved out + amount change = closing.
+    tests:
+      - unique:
+          column_name: "cast(quarter_start as varchar) || '|' || owner_id"
+    columns:
+      - name: owner_id
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_rep'), field: rep_id}

@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: crm
+    description: Salesforce-style CRM extract for the fictional company Kestrel Cloud (generate/generate_crm.py), loaded as text.
+    schema: raw
+    tables:
+      - name: users
+      - name: accounts
+      - name: opportunities
+        description: Current state of each opportunity.
+      - name: opportunity_history
+        description: One row per change, holding the full state after the change (stage, amount, close date, forecast category).
+      - name: quotas

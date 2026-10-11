@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_opportunity_versions
+    description: SCD Type 2 history of every opportunity, one row per version with valid_from / valid_to.
+    tests:
+      - unique:
+          column_name: "opportunity_id || '|' || version_number"
+    columns:
+      - name: valid_from
+        tests: [not_null]
+      - name: owner_id
+        tests: [not_null]
+  - name: int_snapshot_dates
+    columns:
+      - name: as_of_date
+        tests: [unique, not_null]

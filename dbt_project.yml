@@ -1,0 +1,20 @@
+name: gtm_revops
+version: "0.1.0"
+config-version: 2
+profile: gtm_revops
+
+model-paths: ["models"]
+test-paths: ["tests/data_tests"]
+macro-paths: ["macros"]
+
+models:
+  gtm_revops:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

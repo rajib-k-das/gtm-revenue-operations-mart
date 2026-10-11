@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+# Generated data: reproducible from generate/generate_crm.py, so never committed
+data/
+exports/
+*.zip
+target/
+dbt_packages/
+logs/
+.user.yml
+.DS_Store

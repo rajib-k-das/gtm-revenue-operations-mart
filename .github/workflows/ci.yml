@@ -1,0 +1,23 @@
+name: dbt build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # 1. Hand-built test company: every waterfall bucket has a known answer.
+      - run: python ingest/load_crm.py --raw-dir tests/fixtures
+      - run: dbt build
+      # 2. Full synthetic company: reconciliation, point-in-time and integrity tests at scale.
+      - run: python generate/generate_crm.py
+      - run: python ingest/load_crm.py
+      - run: dbt build

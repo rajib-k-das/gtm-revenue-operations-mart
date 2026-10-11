@@ -1,0 +1,6 @@
+Id,Name,AccountId,OwnerId,Type,StageName,Amount,CloseDate,ForecastCategoryName,Probability,CreatedDate,IsClosed,IsWon
+006FIXTURE0001,Won in quarter,001FIXTURE0001,005FIXTURE0001,New Business,Closed Won,12000.00,2024-03-28,Closed,100,2023-11-10 10:00:00,true,true
+006FIXTURE0002,Pushed out,001FIXTURE0001,005FIXTURE0001,New Business,2-Qualification,20000.00,2024-04-30,Pipeline,20,2023-12-01 09:00:00,false,false
+006FIXTURE0003,Created in quarter,001FIXTURE0001,005FIXTURE0001,Expansion,3-Solution,6000.00,2024-03-31,Best Case,40,2024-01-15 12:00:00,false,false
+006FIXTURE0004,Pulled in then lost,001FIXTURE0001,005FIXTURE0001,New Business,Closed Lost,30000.00,2024-03-15,Omitted,0,2023-10-05 14:00:00,true,false
+006FIXTURE0005,Overdue but open,001FIXTURE0001,005FIXTURE0001,New Business,4-Proposal,8000.00,2024-01-31,Best Case,60,2023-09-01 10:00:00,false,false
