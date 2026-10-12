@@ -29,3 +29,34 @@ models:
         tests:
           - relationships:
               arguments: {to: ref('dim_rep'), field: rep_id}
+  - name: dim_opportunity
+    description: One row per opportunity with outcome, days to close and how often its close date was pushed.
+    columns:
+      - name: opportunity_id
+        tests: [unique, not_null]
+      - name: outcome
+        tests:
+          - accepted_values:
+              arguments: {values: ['Won', 'Lost', 'Open']}
+  - name: fct_opportunity_stages
+    description: One row per opportunity and stage entered; conversion = advanced / (advanced + lost).
+    tests:
+      - unique:
+          column_name: "opportunity_id || '|' || stage_name"
+  - name: fct_forecast_snapshots
+    description: Each rep's commit and best-case forecast for the current quarter at the end of every week, with actuals.
+    tests:
+      - unique:
+          column_name: "cast(as_of_date as varchar) || '|' || owner_id"
+  - name: fct_rep_quarter
+    description: Quota, new bookings, attainment and opening pipeline coverage per rep and quarter.
+    tests:
+      - unique:
+          column_name: "cast(quarter_start as varchar) || '|' || owner_id"
+  - name: fct_arr_bridge
+    description: >
+      Quarterly ARR bridge by region: opening + new logo + expansion + renewal uplift - churn
+      - expired awaiting renewal = closing.
+    tests:
+      - unique:
+          column_name: "cast(quarter_start as varchar) || '|' || region"

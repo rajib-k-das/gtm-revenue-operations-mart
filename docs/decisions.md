@@ -68,3 +68,48 @@ quarter of their booking date. A deal pushed out of the quarter and lost later c
 extract date (about 170 dates).
 **Why:** weekly is the cadence sales leaders review pipeline at, and quarter ends anchor the waterfall.
 Daily snapshots would multiply the table by seven for no extra insight; any other date can be rebuilt from the versions.
+
+## 008 — Forecast accuracy: weekly commit vs what was booked
+
+**Choice:** `fct_forecast_snapshots` rebuilds each rep's forecast for the current quarter at the end of every week:
+won to date + open deals in forecast category Commit due in the quarter ("commit"), and commit + Best Case
+("best case"). Error = commit ÷ actual bookings − 1, for complete quarters. New business and expansion only, matching
+the quota; renewals are forecast separately in most sales teams.
+**Why:** a forecast is only useful early in the quarter, so accuracy is measured week by week, not at quarter end.
+**Note:** early in a quarter every rep's commit is below the final number, because deals created and won within the
+quarter are not in it yet. Bias is therefore read relative to peers at the same week of the quarter.
+
+## 009 — ARR from contracts, with a bridge that reconciles
+
+**Choice:** won deals create 12-month contracts (like Salesforce's Contract object), and a renewal contract links to the
+contract it renews and starts the day after it ends. `fct_arr_bridge`: opening ARR + new logo + expansion + renewal
+uplift − churn − expired awaiting renewal = closing ARR, by quarter and region. Opening and closing are computed
+independently from the contracts active on each day; a test checks the movements add up to the difference.
+**Why:** bookings say what was sold; ARR says what the business is worth to keep. Expired contracts whose renewal is
+still open get their own bucket instead of being called churn, because a late renewal is backdated and can still save them.
+**Rejected:** inferring ARR from opportunities alone. Without a contract link, renewals cannot be matched to what they
+renew, and churn cannot be told apart from timing.
+
+## 010 — Renewals are not re-negotiated in the generator
+
+**Found while building:** renewals passed through the Proposal stage, where the generator applies a price negotiation,
+so renewal "uplift" came out negative every quarter, unlike real SaaS renewals with price increases.
+**Choice:** renewals keep their 3% uplift; only new business and expansion are negotiated.
+
+## 011 — Planted-behaviour tests must be able to fail
+
+**Choice:** `assert_planted_behaviours_recovered` checks P1–P5 against thresholds well inside each planted effect.
+**Verified:** with APAC's boost and the forecast biases switched off in a copy of the generator, the test failed on P3
+and P4 as it should. The first version did not fail on P4: with no optimistic or conservative reps left, its comparison
+evaluated to NULL and passed silently. Missing groups now count as a failure.
+
+## 012 — Dashboard files are shaped for the view, not the warehouse
+
+**Choice:** `scripts/export_for_tableau.py` writes one small CSV per dashboard view, already at the grain the view
+needs. The pipeline waterfall file carries each step's start position and signed size, so Tableau draws it as a Gantt
+bar with no table calculations, and because the positions are running totals they still add up when several regions
+or segments are selected together.
+**Why:** the logic stays in tested SQL, where it reconciles, rather than in BI calculated fields, where it cannot be
+tested. The dashboard only displays.
+**Note:** the forecast-accuracy view colours reps by their planted forecast style, which is the generator's answer
+key. A real revenue team would not have it; it is shown so the reader can judge whether the analysis found the bias.

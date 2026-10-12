@@ -10,6 +10,8 @@ Output (CSV, Salesforce-like column names) in --out-dir (default data/raw):
     opportunities.csv         current state of every opportunity
     opportunity_history.csv   one row per change, with the full state after the change
                               (like Salesforce's OpportunityHistory: stage, amount, close date, forecast category)
+    contracts.csv             12-month subscription contracts created by won deals (like Salesforce's Contract object),
+                              each renewal contract linked to the contract it renews
     quotas.csv                quarterly new-bookings quota per rep
 
 Planted behaviours (the "answer key"; see docs/decisions.md, decision 003):
@@ -95,6 +97,24 @@ class Account:
 
 
 @dataclass
+class Contract:
+    id: str
+    opportunity: "Opportunity"
+    start: date
+    end: date
+    arr: float
+    renews: "Contract | None" = None
+
+
+def one_year_later(d: date) -> date:
+    """Last day of a 12-month term starting on d."""
+    try:
+        return d.replace(year=d.year + 1) - timedelta(days=1)
+    except ValueError:                                    # 29 February
+        return date(d.year + 1, 2, 28)
+
+
+@dataclass
 class Opportunity:
     id: str
     account: Account
@@ -103,6 +123,7 @@ class Opportunity:
     created: datetime
     amount: float
     close_date: date
+    renews_contract_id: str = ""                          # renewals only: the contract up for renewal
     versions: list = field(default_factory=list)
 
 
@@ -163,7 +184,8 @@ def forecast_category(stage: str, style: str) -> str:
     return "Best Case"
 
 
-def simulate(opp: Opportunity, start_stage: int, advance_mult: float, dwell_days: float) -> tuple[str, date | None]:
+def simulate(opp: Opportunity, start_stage: int, advance_mult: float, dwell_days: float,
+             negotiate: bool = True) -> tuple[str, date | None]:
     """Walk one opportunity through its life, recording a version (full state) at every change."""
     stage_idx, stage = start_stage, STAGES[start_stage]
     style = opp.owner.forecast_style
@@ -218,7 +240,7 @@ def simulate(opp: Opportunity, start_stage: int, advance_mult: float, dwell_days
         stage = STAGES[stage_idx]
         if (opp.close_date - t.date()).days < 21 and rng.random() < 0.4:   # ordinary slippage near the close date
             opp.close_date = month_end(opp.close_date + timedelta(days=30))
-        if stage_idx == 3:                                # proposal: price is negotiated
+        if stage_idx == 3 and negotiate:                  # proposal: price is negotiated (not on renewals)
             opp.amount = max(500.0, round(opp.amount * float(rng.lognormal(-0.05, 0.15)) / 500) * 500)
         record(t)
         next_stage = business_time(t.date() + timedelta(days=int(rng.gamma(2.0, dwell_days / 2.0)) + 1))
@@ -244,13 +266,17 @@ def main() -> None:
 
     counter = [0]
     opportunities: list[Opportunity] = []
-    contracts: list[tuple[Opportunity, date]] = []       # won deals that start a 12-month contract
+    contracts: list[Contract] = []
 
-    def run(opp: Opportunity, start_stage: int, advance_mult: float, dwell: float) -> None:
-        outcome, closed = simulate(opp, start_stage, advance_mult, dwell)
+    def run(opp: Opportunity, start_stage: int, advance_mult: float, dwell: float,
+            renews: Contract | None = None) -> None:
+        outcome, closed = simulate(opp, start_stage, advance_mult, dwell, negotiate=renews is None)
         opportunities.append(opp)
         if outcome == "won":
-            contracts.append((opp, closed))
+            # a renewal contract starts the day after the one it renews ends, even if it was signed late
+            start = renews.end + timedelta(days=1) if renews else closed
+            contracts.append(Contract(f"800{len(contracts) + 1:012d}", opp, start, one_year_later(start),
+                                      round(opp.amount, 2), renews))
             if opp.account.first_win is None:
                 opp.account.first_win, opp.account.first_win_amount = closed, opp.amount
 
@@ -290,25 +316,25 @@ def main() -> None:
             opp = new_opportunity(counter, account, owner, "Expansion", business_time(t), amount, close)
             run(opp, 1, 1.15, 9.0 if owner.segment == "Mid-Market" else 18.0)
 
-    # 3. Renewals: every won contract comes up for renewal 90 days before its anniversary (and again each year)
+    # 3. Renewals: every contract comes up for renewal 90 days before it ends (renewed contracts too)
     i = 0
     while i < len(contracts):
-        won_opp, won_day = contracts[i]
+        contract = contracts[i]
         i += 1
-        created_day = won_day + timedelta(days=275)
+        created_day = contract.end - timedelta(days=89)
         if created_day > CUTOFF:
             continue
-        close = month_end(won_day + timedelta(days=365))
-        opp = new_opportunity(counter, won_opp.account, won_opp.owner, "Renewal", business_time(created_day),
-                              round(won_opp.amount * 1.03, 2), close)
-        before = len(contracts)
-        run(opp, 2, 1.32, 15.0)      # renewals start at Solution and win about nine times in ten
-        assert len(contracts) in (before, before + 1)
+        source = contract.opportunity
+        opp = new_opportunity(counter, source.account, source.owner, "Renewal", business_time(created_day),
+                              round(contract.arr * 1.03, 2), month_end(contract.end))
+        opp.renews_contract_id = contract.id
+        run(opp, 2, 1.32, 15.0, renews=contract)      # renewals start at Solution and win about nine times in ten
 
-    write_outputs(args.out_dir, reps, accounts, opportunities)
+    write_outputs(args.out_dir, reps, accounts, opportunities, contracts)
 
 
-def write_outputs(out_dir: Path, reps: list[Rep], accounts: list[Account], opportunities: list[Opportunity]) -> None:
+def write_outputs(out_dir: Path, reps: list[Rep], accounts: list[Account], opportunities: list[Opportunity],
+                  contracts: list[Contract]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     fmt = "%Y-%m-%d %H:%M:%S"
 
@@ -331,15 +357,21 @@ def write_outputs(out_dir: Path, reps: list[Rep], accounts: list[Account], oppor
         opp_rows.append([o.id, f"{o.account.name} - {o.type}", o.account.id, o.owner.id, o.type, last["stage"],
                          f"{last['amount']:.2f}", last["close"].isoformat(), last["fc"], last["prob"],
                          o.created.strftime(fmt), str(last["stage"] in (WON, LOST)).lower(),
-                         str(last["stage"] == WON).lower()])
+                         str(last["stage"] == WON).lower(), o.renews_contract_id])
         for v in o.versions:
             n += 1
             hist_rows.append([f"008{n:012d}", o.id, v["ts"].strftime(fmt), v["stage"], f"{v['amount']:.2f}",
                               v["close"].isoformat(), v["fc"], v["prob"]])
     write("opportunities.csv", ["Id", "Name", "AccountId", "OwnerId", "Type", "StageName", "Amount", "CloseDate",
-                                "ForecastCategoryName", "Probability", "CreatedDate", "IsClosed", "IsWon"], opp_rows)
+                                "ForecastCategoryName", "Probability", "CreatedDate", "IsClosed", "IsWon", "RenewedContractId"],
+          opp_rows)
     write("opportunity_history.csv", ["Id", "OpportunityId", "CreatedDate", "StageName", "Amount", "CloseDate",
                                       "ForecastCategory", "Probability"], hist_rows)
+
+    write("contracts.csv", ["Id", "AccountId", "OpportunityId", "ContractType", "StartDate", "EndDate",
+                            "AnnualRecurringRevenue", "RenewedContractId"],
+          [[c.id, c.opportunity.account.id, c.opportunity.id, c.opportunity.type, c.start.isoformat(),
+            c.end.isoformat(), f"{c.arr:.2f}", c.renews.id if c.renews else ""] for c in contracts])
 
     # Quotas: new-bookings quota (New Business + Expansion) per rep and quarter, set at ~115% of the segment's
     # average bookings per rep that year, so typical attainment sits a little under 90%.

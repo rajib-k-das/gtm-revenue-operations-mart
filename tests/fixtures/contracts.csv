@@ -1,0 +1,2 @@
+Id,AccountId,OpportunityId,ContractType,StartDate,EndDate,AnnualRecurringRevenue,RenewedContractId
+800FIXTURE0001,001FIXTURE0001,006FIXTURE0001,New Business,2024-03-28,2025-03-27,12000.00,

@@ -2,7 +2,7 @@
 Load the CRM extract (CSV files) into DuckDB as text; typing happens in dbt staging.
 
 Input: data/raw/*.csv from generate/generate_crm.py, or the hand-built test company in tests/fixtures.
-Output: raw.users, raw.accounts, raw.opportunities, raw.opportunity_history, raw.quotas
+Output: raw.users, raw.accounts, raw.opportunities, raw.opportunity_history, raw.contracts, raw.quotas
 
 Each file's header is checked against the expected Salesforce-style columns before loading,
 so a changed extract fails here with a clear message instead of producing wrong numbers later.
@@ -28,9 +28,11 @@ EXPECTED = {
     "users": ["Id", "Name", "Region", "Segment", "ForecastStyle"],
     "accounts": ["Id", "Name", "Region", "Segment", "Industry", "OwnerId"],
     "opportunities": ["Id", "Name", "AccountId", "OwnerId", "Type", "StageName", "Amount", "CloseDate",
-                      "ForecastCategoryName", "Probability", "CreatedDate", "IsClosed", "IsWon"],
+                      "ForecastCategoryName", "Probability", "CreatedDate", "IsClosed", "IsWon", "RenewedContractId"],
     "opportunity_history": ["Id", "OpportunityId", "CreatedDate", "StageName", "Amount", "CloseDate",
                             "ForecastCategory", "Probability"],
+    "contracts": ["Id", "AccountId", "OpportunityId", "ContractType", "StartDate", "EndDate",
+                  "AnnualRecurringRevenue", "RenewedContractId"],
     "quotas": ["OwnerId", "QuarterStartDate", "QuotaAmount"],
 }
 

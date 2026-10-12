@@ -46,6 +46,49 @@ CHECKS = {
         where v.is_current and not v.is_open and v.opportunity_type = 'New Business'
         group by 1 order by 1
     """,
+    "5. ARR bridge by quarter, all regions ($K)": """
+        select quarter_start as quarter, round(sum(opening_arr) / 1e3) as opening, round(sum(new_logo) / 1e3) as new_logo,
+               round(sum(expansion) / 1e3) as expansion, round(sum(renewal_uplift) / 1e3) as uplift,
+               round(sum(churn) / 1e3) as churn, round(sum(expired_awaiting_renewal) / 1e3) as awaiting_renewal,
+               round(sum(closing_arr) / 1e3) as closing
+        from marts.fct_arr_bridge group by 1 order by 1
+    """,
+    "6. P4 - Commit forecast error by rep forecast style (median, complete quarters; style is the answer key)": """
+        select r.planted_forecast_style as planted_style, count(distinct r.rep_id) as reps,
+               round(100 * median(f.commit_error) filter (where f.week_of_quarter = 4), 1)  as week4_error_pct,
+               round(100 * median(f.commit_error) filter (where f.week_of_quarter = 6), 1)  as week6_error_pct,
+               round(100 * median(f.commit_error) filter (where f.week_of_quarter = 8), 1)  as week8_error_pct,
+               round(100 * avg(f.commit_error) filter (where f.week_of_quarter = 10), 1)    as week10_mean_error_pct
+        from marts.fct_forecast_snapshots as f
+        inner join marts.dim_rep as r on r.rep_id = f.owner_id
+        where f.commit_error is not null
+        group by 1 order by week6_error_pct desc
+    """,
+    "7. Quota attainment and opening pipeline coverage by region (complete quarters from Q2 2023)": """
+        select r.region, round(100 * sum(q.bookings) / sum(q.quota_amount), 1) as attainment_pct,
+               round(sum(q.opening_pipeline) / sum(q.quota_amount), 2) as opening_coverage,
+               round(100.0 * count(*) filter (where q.attainment >= 1) / count(*), 1) as pct_rep_quarters_at_quota
+        from marts.fct_rep_quarter as q
+        inner join marts.dim_rep as r on r.rep_id = q.owner_id
+        where q.is_quarter_complete and q.quarter_start >= date '2023-04-01'
+        group by 1 order by 1
+    """,
+    "8. New-business stage conversion and median days in stage, by segment": """
+        select segment, stage_name, count(*) as entered,
+               round(100.0 * count(*) filter (where stage_outcome = 'Advanced')
+                     / count(*) filter (where stage_outcome <> 'Still in stage'), 1) as conversion_pct,
+               median(days_in_stage) as median_days
+        from marts.fct_opportunity_stages
+        where opportunity_type = 'New Business'
+        group by 1, 2 order by 1, 2
+    """,
+    "9. P5 - Won deals: median size and days to close, by segment and type": """
+        select segment, opportunity_type, count(*) as won, round(median(final_amount)) as median_amount,
+               round(median(days_to_close)) as median_days_to_close,
+               round(avg(quarters_pushed), 2) as avg_quarters_pushed
+        from marts.dim_opportunity where outcome = 'Won'
+        group by 1, 2 order by 2, 1
+    """,
 }
 
 

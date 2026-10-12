@@ -11,4 +11,6 @@ sources:
         description: Current state of each opportunity.
       - name: opportunity_history
         description: One row per change, holding the full state after the change (stage, amount, close date, forecast category).
+      - name: contracts
+        description: 12-month subscription contracts from won deals; renewals link to the contract they renew.
       - name: quotas

@@ -11,5 +11,6 @@ select
     cast(Probability as integer)                    as probability,
     cast(CreatedDate as timestamp)                  as created_at,
     cast(IsClosed as boolean)                       as is_closed,
-    cast(IsWon as boolean)                          as is_won
+    cast(IsWon as boolean)                          as is_won,
+    nullif(trim(RenewedContractId), '')             as renewed_contract_id
 from {{ source('crm', 'opportunities') }}

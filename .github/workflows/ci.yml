@@ -21,3 +21,5 @@ jobs:
       - run: python generate/generate_crm.py
       - run: python ingest/load_crm.py
       - run: dbt build
+      # 3. The dashboard's data files still build from the marts.
+      - run: python scripts/export_for_tableau.py
