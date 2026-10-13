@@ -11,6 +11,10 @@ questions a revenue operations team is asked every week:
 - **Which reps' forecasts can be trusted,** and from which week of the quarter?
 - **How is ARR moving:** new logos, expansion, renewal uplift, churn?
 
+**[Live dashboard on Tableau Public ↗](https://public.tableau.com/app/profile/rajib.kumar.das/viz/B2BPipelineAnalytics/B2BPipelineAnalytics)**
+
+[![B2B Pipeline Analytics dashboard](docs/dashboard.png)](https://public.tableau.com/app/profile/rajib.kumar.das/viz/B2BPipelineAnalytics/B2BPipelineAnalytics)
+
 ## The data, and why it is synthetic
 
 Real CRM data is never public, so `generate/generate_crm.py` generates a fictional B2B SaaS company, **Kestrel Cloud**:
@@ -37,7 +41,7 @@ a known-answer test at the scale of a whole company ([decision 003](docs/decisio
 | Marts | `fct_rep_quarter`: quota, bookings, attainment and opening pipeline coverage | ✅ Done |
 | Marts | `fct_arr_bridge`: quarterly ARR bridge by region that reconciles to opening and closing ARR | ✅ Done |
 | Tests | Recovery of all five planted behaviours, verified to fail when a behaviour is removed | ✅ Done |
-| BI | Tableau Public dashboard, from five view-shaped exports ([guide](docs/dashboard_guide.md)) | 🔧 In progress |
+| BI | [Tableau Public dashboard](https://public.tableau.com/app/profile/rajib.kumar.das/viz/B2BPipelineAnalytics/B2BPipelineAnalytics), from five view-shaped exports ([guide](docs/dashboard_guide.md)) | ✅ Done |
 
 ## Architecture
 
@@ -59,7 +63,7 @@ All five planted behaviours are recovered by the marts, and a test fails if any 
 
 | Planted | Recovered |
 |---|---|
-| P1 end-of-quarter scrub | 72% of close-date pushes into a later quarter happen in weeks 11–13 |
+| P1 end-of-quarter scrub | 72% of close-date pushes into a later quarter happen in weeks 11–13; the rest are in week 1 |
 | P2 hockey stick | 17% of new-bookings wins land in the last 7 days of the quarter, over twice an even share |
 | P3 inflated APAC pipeline | APAC reps create 14.6 new deals a quarter vs ~9 elsewhere, but win 8.5% of pipeline value vs 15–21% |
 | P4 forecast bias | At week 6, optimistic reps' commit sits at 0% median error, accurate reps' at −29%, conservative reps' at −54% |
@@ -69,6 +73,9 @@ What a revenue leader would take from it:
 
 - **Coverage alone misleads.** APAC starts quarters with 2.2× pipeline coverage, close to North America's 2.4×, yet
   attains 67% of quota against North America's 110%. Coverage has to be read with each region's conversion rate.
+- **Stale deals are cleaned up a quarter late.** Every close-date push in week 1 of a quarter (28% of all pushes) is a
+  deal that was already overdue from the previous quarter and was only updated once the new quarter began. Those deals
+  sat in last quarter's pipeline as if they could still close.
 - **The forecast is only trustworthy late.** Even accurate reps' commit sits about 30% below the final number at
   week 6, because many deals are created and won inside the quarter. Rep-level bias is visible from week 4.
 - **ARR grew from $0.6M to $20.7M in three years,** driven by new logos ($1.3–2.5M a quarter). Churn rose with the
